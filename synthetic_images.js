@@ -146,7 +146,7 @@ class ObjectDetectionImageSynthesizer {
     //   this.drawLineSegment(ctx);
     // }
 
-    console.log(boundingBox)
+    //console.log(boundingBox)
 
     return tf.tidy(() => {
       const imageTensor = tf.browser.fromPixels(this.canvas);

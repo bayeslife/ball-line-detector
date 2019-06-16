@@ -1,3 +1,4 @@
+const debug = require('debug')('train')
 const fs = require('fs');
 const path = require('path');
 
@@ -42,6 +43,9 @@ function customLossFunction(yTrue, yPred) {
     // Scale the the first column (0-1 shape indicator) of `yTrue` in order
     // to ensure balanced contributions to the final loss value
     // from shape and bounding-box predictions.
+
+    console.log(yPred)
+    
     return tf.metrics.meanSquaredError(yTrue.mul(LABEL_MULTIPLIER), yPred);
   });
 }
@@ -59,7 +63,9 @@ function customLossFunction(yTrue, yPred) {
 async function loadTruncatedBase() {
   // TODO(cais): Add unit test.
   const mobilenet = await tf.loadLayersModel(
-      'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json');
+      'file:///mnt/c/bayeslife/learn-tensorflow/ball-line-detector/model/mobilenet/model.json'
+      //'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json'
+      );
 
   // Return a model that outputs an internal activation.
   const fineTuningLayers = [];
@@ -93,13 +99,14 @@ async function loadTruncatedBase() {
 function buildNewHead(inputShape) {
   const newHead = tf.sequential();
   newHead.add(tf.layers.flatten({inputShape}));
-  newHead.add(tf.layers.dense({units: 200, activation: 'relu'}));
+  newHead.add(tf.layers.dense({units: 20, activation: 'relu'}));
   // Five output units:
   //   - The first is a shape indictor: predicts whether the target
   //     shape is a triangle or a rectangle.
   //   - The remaining four units are for bounding-box prediction:
   //     [left, right, top, bottom] in the unit of pixels.
   newHead.add(tf.layers.dense({units: 5}));
+  newHead.summary()
   return newHead;
 }
 
@@ -114,6 +121,9 @@ async function buildObjectDetectionModel() {
   const {truncatedBase, fineTuningLayers} = await loadTruncatedBase();
 
   // Build the new head model.
+  debug(`TruncatedBase Outputs[0] Shape: ${truncatedBase.outputs[0]}`)
+  debug(`${truncatedBase.outputs[0].shape.slice(1)}`)
+
   const newHead = buildNewHead(truncatedBase.outputs[0].shape.slice(1));
   const newOutput = newHead.apply(truncatedBase.outputs[0]);
   const model = tf.model({inputs: truncatedBase.inputs, outputs: newOutput});
@@ -133,26 +143,26 @@ async function buildObjectDetectionModel() {
   });
   parser.addArgument(
       '--numExamples',
-      {type: 'int', defaultValue: 200, help: 'Number of training exapmles'});
+      {type: 'int', defaultValue: 100, help: 'Number of training exapmles'});
   parser.addArgument('--validationSplit', {
     type: 'float',
-    defaultValue: 0.15,
+    defaultValue: 0.10,
     help: 'Validation split to be used during training'
   });
   parser.addArgument('--batchSize', {
     type: 'int',
-    defaultValue: 128,
+    defaultValue: 32,
     help: 'Batch size to be used during training'
   });
   parser.addArgument('--initialTransferEpochs', {
     type: 'int',
-    defaultValue: 100,
+    defaultValue: 10,
     help: 'Number of training epochs in the initial transfer ' +
         'learning (i.e., 1st) phase'
   });
   parser.addArgument('--fineTuningEpochs', {
     type: 'int',
-    defaultValue: 100,
+    defaultValue: 10,
     help: 'Number of training epochs in the fine-tuning (i.e., 2nd) phase'
   });
   parser.addArgument('--logDir', {
@@ -189,7 +199,7 @@ async function buildObjectDetectionModel() {
 
   const {model, fineTuningLayers} = await buildObjectDetectionModel();
   model.compile({loss: customLossFunction, optimizer: tf.train.rmsprop(5e-3)});
-  model.summary();
+  //model.summary();
 
   // Initial phase of transfer learning.
   console.log('Phase 1 of 2: initial transfer learning');
@@ -208,7 +218,7 @@ async function buildObjectDetectionModel() {
     layer.trainable = true;
   }
   model.compile({loss: customLossFunction, optimizer: tf.train.rmsprop(2e-3)});
-  model.summary();
+  //model.summary();
 
   // Do fine-tuning.
   // The batch size is reduced to avoid CPU/GPU OOM. This has

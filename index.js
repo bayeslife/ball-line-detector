@@ -122,45 +122,59 @@ async function init() {
 
   const visor = tfvis.visor()
 
-  const LOCAL_MODEL_PATH = 'object_detection_model/model.json';
-  const HOSTED_MODEL_PATH = '../model/mobilenet/model.json'
+  const LOCAL_MODEL_PATH = './object_detection_model/model.json';
+  const HOSTED_MODEL_PATH = './model/mobilenet/model.json'
       //'https://storage.googleapis.com/tfjs-examples/simple-object-detection/dist/object_detection_model/model.json';
+
 
   // Attempt to load locally-saved model. If it fails, activate the
   // "Load hosted model" button.
-  let model;
+  let trainingModel,mobileNetModel;
   try {
-    model = await tf.loadLayersModel(LOCAL_MODEL_PATH);
-    model.summary();
+    trainingModel = await tf.loadLayersModel(LOCAL_MODEL_PATH);
+
+    const surface = { name: 'Model Summary', tab: 'Trained Model'};
+    tfvis.show.modelSummary(surface,trainingModel)
+
+    //model.summary();
     testModel.disabled = false;
     status.textContent = 'Loaded locally-saved model! Now click "Test Model".';
-    runAndVisualizeInference(model);
+    runAndVisualizeInference(trainingModel);
   } catch (err) {
     status.textContent = 'Failed to load locally-saved model. ' +
         'Please click "Load Hosted Model"';
     loadHostedModel.disabled = false;
   }
 
-  if(!model){
+  {
   //loadHostedModel.addEventListener('click', async () => {
     try {
       status.textContent = `Loading hosted model from ${HOSTED_MODEL_PATH} ...`;
-      model = await tf.loadLayersModel(HOSTED_MODEL_PATH);
-      model.summary();
+      mobileNetModel = await tf.loadLayersModel(HOSTED_MODEL_PATH);
+
+      const surface = { name: 'Model Summary', tab: 'MobileNet'};
+      tfvis.show.modelSummary(surface,mobileNetModel)
+
+      //model.summary();
       loadHostedModel.disabled = true;
       testModel.disabled = false;
       status.textContent =
           `Loaded hosted model successfully. Now click "Test Model".`;
-      runAndVisualizeInference(model);
+      
     } catch (err) {
       status.textContent =
           `Failed to load hosted model from ${HOSTED_MODEL_PATH}`;
     }
+
+    if(trainingModel){
+      runAndVisualizeInference(trainingModel);
+    }else {
+      runAndVisualizeInference(mobileNetModel);
+    }
   //});
   }
 
-  const surface = { name: 'Model Summary', tab: 'Model Inspection'};
-  tfvis.show.modelSummary(surface,model)
+
                         
   testModel.addEventListener('click', () => runAndVisualizeInference(model));
 }
