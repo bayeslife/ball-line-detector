@@ -44,8 +44,7 @@ function customLossFunction(yTrue, yPred) {
     // to ensure balanced contributions to the final loss value
     // from shape and bounding-box predictions.
 
-    console.log(yPred)
-    
+    //console.log(yPred)
     return tf.metrics.meanSquaredError(yTrue.mul(LABEL_MULTIPLIER), yPred);
   });
 }
@@ -143,7 +142,7 @@ async function buildObjectDetectionModel() {
   });
   parser.addArgument(
       '--numExamples',
-      {type: 'int', defaultValue: 100, help: 'Number of training exapmles'});
+      {type: 'int', defaultValue: 1000, help: 'Number of training examples'});
   parser.addArgument('--validationSplit', {
     type: 'float',
     defaultValue: 0.10,
@@ -151,18 +150,18 @@ async function buildObjectDetectionModel() {
   });
   parser.addArgument('--batchSize', {
     type: 'int',
-    defaultValue: 32,
+    defaultValue: 16,
     help: 'Batch size to be used during training'
   });
   parser.addArgument('--initialTransferEpochs', {
     type: 'int',
-    defaultValue: 10,
+    defaultValue: 100,
     help: 'Number of training epochs in the initial transfer ' +
         'learning (i.e., 1st) phase'
   });
   parser.addArgument('--fineTuningEpochs', {
     type: 'int',
-    defaultValue: 10,
+    defaultValue: 100,
     help: 'Number of training epochs in the fine-tuning (i.e., 2nd) phase'
   });
   parser.addArgument('--logDir', {

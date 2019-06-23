@@ -2,6 +2,7 @@ import * as tf from '@tensorflow/tfjs';
 import * as tfvis from '@tensorflow/tfjs-vis'
 
 import {ObjectDetectionImageSynthesizer} from './synthetic_images';
+import { loadGraphModel } from '@tensorflow/tfjs';
 
 const canvas = document.getElementById('data-canvas');
 const status = document.getElementById('status');
@@ -10,6 +11,8 @@ const loadHostedModel = document.getElementById('load-hosted-model');
 const inferenceTimeMs = document.getElementById('inference-time-ms');
 const trueObjectClass = document.getElementById('true-object-class');
 const predictedObjectClass = document.getElementById('predicted-object-class');
+
+const loadModelDiv = document.getElementById('loadmodels');
 
 const TRUE_BOUNDING_BOX_LINE_WIDTH = 2;
 const TRUE_BOUNDING_BOX_STYLE = 'rgb(255,0,0)';
@@ -120,61 +123,80 @@ async function runAndVisualizeInference(model) {
 
 async function init() {
 
-  const visor = tfvis.visor()
+   const visor = tfvis.visor()
 
-  const LOCAL_MODEL_PATH = './object_detection_model/model.json';
-  const HOSTED_MODEL_PATH = './model/mobilenet/model.json'
-      //'https://storage.googleapis.com/tfjs-examples/simple-object-detection/dist/object_detection_model/model.json';
+  const HOSTED_MODEL_PATH = './model/mobilenet/model.json' //'https://storage.googleapis.com/tfjs-examples/simple-object-detection/dist/object_detection_model/model.json';
+  const TRAINING_MODEL_PATH = './object_detection_model/model.json';
+  const RUN_NO_TRAIN_MODEL_PATH = './model/run-no-train/model.json';
+  const RUN1_MODEL_PATH = './model/run1/model.json';
+  const RUN2_MODEL_PATH = './model/run2/model.json';
+  
+  //const  MOBILENETV1 = 'https://storage.googleapis.com/tfjs-models/savedmodel/mobilenet_v1_1.0_224/model.json'
 
+  let models = {
+    mobilenet: 
+      {
+        description: "Base Mobile Net Performance",
+        path: HOSTED_MODEL_PATH
+      } ,
+    latest:   {
+      description: "Latest Training",
+      path: TRAINING_MODEL_PATH
+     },
+    no_train:  {
+      description: "Model with no training",
+      path: RUN_NO_TRAIN_MODEL_PATH
+     }, 
+     run1: {
+       description: "Model with significant training(training images=2000,batchsize=32epochs=200,finetune=100)",
+       path: './model/run2/model.json'
+     },
+     run2: {
+        description: "Model with significant training(training images=1000,batchsize=16 epochs=100,finetune=100)",
+        path: './model/run2/model.json'
+      }
+  }
+
+  let keys = Object.keys(models)
 
   // Attempt to load locally-saved model. If it fails, activate the
   // "Load hosted model" button.
-  let trainingModel,mobileNetModel;
-  try {
-    trainingModel = await tf.loadLayersModel(LOCAL_MODEL_PATH);
+  let model, trainingModel,mobileNetModel;
 
-    const surface = { name: 'Model Summary', tab: 'Trained Model'};
-    tfvis.show.modelSummary(surface,trainingModel)
+  window.loadModel= async (index, el)=>{ 
+    let modelMeta = models[index]
+    let modelPath = modelMeta.path
 
-    //model.summary();
-    testModel.disabled = false;
-    status.textContent = 'Loaded locally-saved model! Now click "Test Model".';
-    runAndVisualizeInference(trainingModel);
-  } catch (err) {
-    status.textContent = 'Failed to load locally-saved model. ' +
-        'Please click "Load Hosted Model"';
-    loadHostedModel.disabled = false;
-  }
+    keys.forEach((modelKey)=>{
+      let e = document.getElementById(modelKey)
+      e.disabled=false
+   })
 
-  {
-  //loadHostedModel.addEventListener('click', async () => {
+    el.disabled = true;
+
     try {
-      status.textContent = `Loading hosted model from ${HOSTED_MODEL_PATH} ...`;
-      mobileNetModel = await tf.loadLayersModel(HOSTED_MODEL_PATH);
-
-      const surface = { name: 'Model Summary', tab: 'MobileNet'};
-      tfvis.show.modelSummary(surface,mobileNetModel)
-
+      status.textContent = `Loading model from ${modelPath} ...`;
+      model = await tf.loadLayersModel(modelPath);
+  
+      const surface = { name: 'Model Summary', tab: 'Trained Model'};
+      tfvis.show.modelSummary(surface,model)
+  
       //model.summary();
-      loadHostedModel.disabled = true;
       testModel.disabled = false;
-      status.textContent =
-          `Loaded hosted model successfully. Now click "Test Model".`;
-      
+      status.textContent = 'Loaded model! Now click "Test Model".';
+      runAndVisualizeInference(model);
     } catch (err) {
-      status.textContent =
-          `Failed to load hosted model from ${HOSTED_MODEL_PATH}`;
+      status.textContent = 'Failed to load model. ' +
+          'Please click "Load Hosted Model"';
     }
-
-    if(trainingModel){
-      runAndVisualizeInference(trainingModel);
-    }else {
-      runAndVisualizeInference(mobileNetModel);
-    }
-  //});
   }
 
 
+  let h = keys.map((modelKey)=>{
+    let modelMeta = models[modelKey]
+    return `<button id='${modelKey}' onClick="loadModel('${modelKey}',this)">${modelMeta.description}</button>`
+  })
+  loadModelDiv.innerHTML = h
                         
   testModel.addEventListener('click', () => runAndVisualizeInference(model));
 }
